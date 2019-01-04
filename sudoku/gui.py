@@ -11,17 +11,17 @@ def chunks(l, n):
 
 
 class SudokuField:
-    def __init__(self, n, bx, by, surface=None):
+    def __init__(self, n, bx, by, surface=None, cellsize=32):
         self.field = [[None for _x in range(n)] for _y in range(n)]
         self.immutable = [[False for _x in range(n)] for _y in range(n)]
         self.block = (bx, by)
-        self.cellsize=32
+        self.cellsize=cellsize
         self.selected = None
         self.select_phase = 0
         self.select_tick = 0
         self.errors = []
         self.error_ticks = 0
-        self.cells = [[pygame.Rect(self.cellsize*_x, self.cellsize*_y, self.cellsize, self.cellsize) for _x in range(n)] for _y in range(n)]
+        self.cells = [[pygame.Rect(cellsize*_x, cellsize*_y, cellsize, cellsize) for _x in range(n)] for _y in range(n)]
         if not surface:
             self.surface = pygame.display.set_mode((n*self.cellsize, n*self.cellsize))
         else:
@@ -108,7 +108,7 @@ class SudokuField:
         self.error_ticks = 30
 
     @classmethod
-    def from_file(cls, file, surface=None):
+    def from_file(cls, file, surface=None, cellsize=32):
         with open(file) as f:
             data=list(map(int, f.read().split()))
         n, x, y = data[0:3]
@@ -116,7 +116,7 @@ class SudokuField:
             raise ValueError('Block area not equal to side length; is the file corrupt?')
         if len(data)!=n*n+3:
             raise IndexError(f'File is wrong length: expected {n*n+3} items, found {len(data)} items instead. Is the file corrupt?')
-        field = cls(n,x,y, surface)
+        field = cls(n,x,y, surface, cellsize=cellsize)
         data = data[3:]
         data = [None if not i else i for i in data]
         data = list(chunks(data, n))
@@ -127,9 +127,9 @@ class SudokuField:
         return field
 
 class SudokuNumberSelector:
-    def __init__(self, n, surface):
+    def __init__(self, n, surface, cellsize):
         self.surface = surface
-        self.cellsize = 32
+        self.cellsize = cellsize
         self.cellnum = n
         self.cells = [pygame.Rect((i*self.cellsize,0),(self.cellsize,self.cellsize)) for i in range(n+1)]
         self.error = None
@@ -164,16 +164,20 @@ class SudokuNumberSelector:
 
 
 class SudokuGame:
-    def __init__(self):
+    def __init__(self, field='field-easy.txt', cellsize=32):
         self.running = True
         self.surface = pygame.display.set_mode((800,800))
-        self.width = int(open('field-easy.txt').readline().split()[0])
-        size=self.width*32
+        self.width = int(open(field).readline().split()[0])
+        size=self.width*cellsize
         self.fieldrect = pygame.Rect(0,0,size,size)
-        self.field = SudokuField.from_file('field-easy.txt', pygame.Surface((size, size)))
-        self.selector = SudokuNumberSelector(len(self.field.field), pygame.Surface((size+32,32)))
+        self.fieldrect.x+=10
+        self.fieldrect.y+=10
+        self.field = SudokuField.from_file(field, pygame.Surface((size, size)), cellsize)
+        self.selector = SudokuNumberSelector(len(self.field.field), pygame.Surface((size+cellsize,cellsize)), cellsize)
         self.selectorrect = self.selector.surface.get_rect()
-        self.selectorrect.y = size+16
+        self.selectorrect.y = size+16+10
+        self.selectorrect.x+=10
+
         self.clock = pygame.time.Clock()
         self.listen_click_thread = threading.Thread(target=self.listen_click, daemon=True)
         self.listen_click_thread.start()
@@ -203,3 +207,7 @@ class SudokuGame:
         pygame.draw.rect(self.surface, pygame.Color('white'), self.fieldrect, 3)
         pygame.draw.rect(self.surface, pygame.Color('white'), self.selectorrect, 3)
         pygame.display.update()
+
+if __name__ == '__main__':
+    game = SudokuGame(cellsize=64)
+    input()
