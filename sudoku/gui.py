@@ -1,6 +1,9 @@
 #!/usr/bin/python3
 import pygame
 import threading
+import tkinter
+import tkinter.filedialog
+import traceback
 pygame.init()
 
 # from https://stackoverflow.com/a/312464/5936187
@@ -164,24 +167,37 @@ class SudokuNumberSelector:
 
 
 class SudokuGame:
-    def __init__(self, field='field-easy.txt', cellsize=32):
-        self.running = True
-        self.surface = pygame.display.set_mode((800,800))
-        self.width = int(open(field).readline().split()[0])
-        size=self.width*cellsize
-        self.fieldrect = pygame.Rect(0,0,size,size)
-        self.fieldrect.x+=10
-        self.fieldrect.y+=10
-        self.field = SudokuField.from_file(field, pygame.Surface((size, size)), cellsize)
-        self.selector = SudokuNumberSelector(len(self.field.field), pygame.Surface((size+cellsize,cellsize)), cellsize)
-        self.selectorrect = self.selector.surface.get_rect()
-        self.selectorrect.y = size+16+10
-        self.selectorrect.x+=10
+    def __init__(self, cellsize=32):
+        try:
+            field = self.get_path()
+            self.running = True
+            self.surface = pygame.display.set_mode((800,800))
+            self.width = int(open(field).readline().split()[0])
+            size=self.width*cellsize
+            self.fieldrect = pygame.Rect(0,0,size,size)
+            self.fieldrect.x+=10
+            self.fieldrect.y+=10
+            self.field = SudokuField.from_file(field, pygame.Surface((size, size)), cellsize)
+            self.selector = SudokuNumberSelector(len(self.field.field), pygame.Surface((size+cellsize,cellsize)), cellsize)
+            self.selectorrect = self.selector.surface.get_rect()
+            self.selectorrect.y = size+16+10
+            self.selectorrect.x+=10
 
-        self.clock = pygame.time.Clock()
-        #self.listen_click_thread = threading.Thread(target=self.listen_click, daemon=True)
-        #self.listen_click_thread.start()
-        self.listen_click()
+            self.clock = pygame.time.Clock()
+            #self.listen_click_thread = threading.Thread(target=self.listen_click, daemon=True)
+            #self.listen_click_thread.start()
+            self.listen_click()
+        except:
+            self.draw_error(traceback.format_exc())
+    @staticmethod
+    def get_path():
+        a = tkinter.Tk()
+        w = tkinter.Label(a, text="Select file in dialog (may be minimized)", font=("Helvetica", 24))
+        w.pack()
+        file = tkinter.filedialog.askopenfilename()
+        a.destroy()
+        return file
+
     def listen_click(self):
         while self.running:
             self.clock.tick(20)
@@ -212,6 +228,27 @@ class SudokuGame:
         pygame.draw.rect(self.surface, pygame.Color('white'), self.selectorrect, 3)
         pygame.display.update()
 
+    @staticmethod
+    def draw_error(error):
+        error=['Unhandled exception!']+error.split('\n')+['Please report this.']
+        font = pygame.font.SysFont(pygame.font.get_default_font(), 32)
+        error = [font.render(str(i), True, pygame.Color('red')) for i in error]
+        display = pygame.display.set_mode((max(error, key=lambda x: x.get_width()).get_width(), 32*(len(error)+1)))
+        for i,j in enumerate(error):
+            display.blit(j, (0, 32*i))
+        pygame.display.flip()
+        c=pygame.time.Clock()
+        while 1:
+            c.tick(5)
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    return None
+
+
+
+
+
 if __name__ == '__main__':
-    game = SudokuGame(cellsize=64, field=input('path to field: '))
+    game = SudokuGame(cellsize=64)
     #input()
