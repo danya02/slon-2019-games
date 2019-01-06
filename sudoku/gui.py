@@ -179,8 +179,8 @@ class SudokuGame:
         self.selectorrect.x+=10
 
         self.clock = pygame.time.Clock()
-        self.listen_click_thread = threading.Thread(target=self.listen_click, daemon=True)
-        self.listen_click_thread.start()
+        #self.listen_click_thread = threading.Thread(target=self.listen_click, daemon=True)
+        #self.listen_click_thread.start()
     def listen_click(self):
         while self.running:
             self.clock.tick(20)
@@ -210,4 +210,5 @@ class SudokuGame:
 
 if __name__ == '__main__':
     game = SudokuGame(cellsize=64)
-    input()
+    #input()
+    game.listen_click()
