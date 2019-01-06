@@ -181,11 +181,15 @@ class SudokuGame:
         self.clock = pygame.time.Clock()
         #self.listen_click_thread = threading.Thread(target=self.listen_click, daemon=True)
         #self.listen_click_thread.start()
+        self.listen_click()
     def listen_click(self):
         while self.running:
             self.clock.tick(20)
             self.draw()
             for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    return None
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     x,y = event.pos
                     if self.fieldrect.collidepoint((x,y)):
@@ -209,6 +213,5 @@ class SudokuGame:
         pygame.display.update()
 
 if __name__ == '__main__':
-    game = SudokuGame(cellsize=64)
+    game = SudokuGame(cellsize=64, field=input('path to field: '))
     #input()
-    game.listen_click()
