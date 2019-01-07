@@ -156,9 +156,11 @@ class SudokuNumberSelector:
         self.cells = [pygame.Rect((i*self.cellsize,0),(self.cellsize,self.cellsize)) for i in range(n+1)]
         self.error = None
         self.error_ticks = 0
+        self.n = n
         self.font = pygame.font.SysFont(pygame.font.get_default_font(), int(self.cellsize))
     def reset_cache(self):
         self.font = pygame.font.SysFont(pygame.font.get_default_font(), int(self.cellsize))
+        self.cells = [pygame.Rect((i*self.cellsize,0),(self.cellsize,self.cellsize)) for i in range(self.n+1)]
     def draw(self):
         self.surface.fill(pygame.Color('black'))
         font=self.font
@@ -271,6 +273,7 @@ class SudokuGame:
         self.field.recreate_cache()
         self.selector.surface = pygame.Surface((size+cellsize,cellsize))
         self.selector.cellsize = cellsize
+        self.selector.reset_cache()
         self.selectorrect = self.selector.surface.get_rect()
         self.selectorrect.y = size+16+10
         self.selectorrect.x+=10
