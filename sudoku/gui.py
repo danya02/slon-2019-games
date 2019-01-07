@@ -24,15 +24,18 @@ class SudokuField:
         self.select_tick = 0
         self.errors = []
         self.error_ticks = 0
+        self.count = 0
         self.cells = [[pygame.Rect(cellsize*_x, cellsize*_y, cellsize, cellsize) for _x in range(n)] for _y in range(n)]
         if not surface:
             self.surface = pygame.display.set_mode((n*self.cellsize, n*self.cellsize))
         else:
             self.surface = surface
+        self.font = pygame.font.SysFont(pygame.font.get_default_font(), int(self.cellsize))
+
     def draw(self):
+        font=self.font
         self.surface.fill(pygame.Color('black'))
         drawcell = None
-        font = pygame.font.SysFont(pygame.font.get_default_font(), int(self.cellsize*1.5))
         for fline, cline in zip(self.field, self.cells):
             for value, cell in zip(fline, cline):
                 if value is None:
@@ -42,9 +45,11 @@ class SudokuField:
                         surface = font.render(str(value), True, pygame.Color('white'))
                     else:
                         surface = font.render(str(value), True, pygame.Color('green'))
+                tc = surface.get_rect()
+                tc.center=cell.center
                 pygame.draw.line(self.surface, pygame.Color('white'), (cell.x, 0), (cell.x, self.surface.get_height()))
                 pygame.draw.line(self.surface, pygame.Color('white'), (0, cell.y), (self.surface.get_width(), cell.y))
-                self.surface.blit(surface, cell)
+                self.surface.blit(surface, tc)
                 if self.selected:
                     if (self.selected[0]*self.cellsize, self.selected[1]*self.cellsize) ==  (cell.x, cell.y):
                         drawcell = cell
@@ -78,6 +83,7 @@ class SudokuField:
     def input_number(self, number):
         if not self.selected:
             return None
+        self.count+=1
         sx, sy = self.selected
         self.selected = None
         if number==None:
@@ -137,16 +143,19 @@ class SudokuNumberSelector:
         self.cells = [pygame.Rect((i*self.cellsize,0),(self.cellsize,self.cellsize)) for i in range(n+1)]
         self.error = None
         self.error_ticks = 0
+        self.font = pygame.font.SysFont(pygame.font.get_default_font(), int(self.cellsize))
     def draw(self):
         self.surface.fill(pygame.Color('black'))
-        font = pygame.font.SysFont(pygame.font.get_default_font(), int(self.cellsize*1.5))
+        font=self.font
         for i,j in enumerate(self.cells):
             i+=1
             if i<=self.cellnum:
                 text = font.render(str(i), True, pygame.Color('white'))
             else:
                 text = font.render('?', True, pygame.Color('red'))
-            self.surface.blit(text, j)
+            tc = text.get_rect()
+            tc.center=j.center
+            self.surface.blit(text, tc)
             pygame.draw.rect(self.surface, pygame.Color('white'), j, 2)
             if self.error == i:
                 self.error_ticks-=1
@@ -163,17 +172,45 @@ class SudokuNumberSelector:
         self.error_ticks=30
 
 
-
-
+class SudokuScoreCounter:
+    def __init__(self, score_from, surface):
+        self.target = score_from
+        self.surface = surface
+        self.font = pygame.font.SysFont(pygame.font.get_default_font(), 32)
+        self.brect = pygame.Rect(0,0,0,0)
+    def draw(self, custom=None):
+        self.surface.fill(pygame.Color('black'))
+        text = self.font.render(str(self.target.count), True, pygame.Color('white'))
+        trect = text.get_rect()
+        trect.x+=5
+        trect.y+=5
+        self.surface.blit(text, trect)
+        text = self.font.render("Restart", True, pygame.Color('white'))
+        rtrect = text.get_rect()
+        rtrect.y+=5
+        rtrect.x+=15+trect.x
+        self.surface.blit(text, rtrect)
+        pygame.draw.rect(self.surface, pygame.Color('white'), rtrect, 2)
+        self.brect = rtrect
+    def click(self, x, y):
+        if self.brect.collidepoint((x,y)):
+            for y in range(len(self.target.field)):
+                for x in range(len(self.target.field)):
+                    if not self.target.immutable[y][x]:
+                        self.target.field[y][x]=None
+            self.target.count=0
 
 class SudokuGame:
-    def __init__(self, cellsize=32):
+    def __init__(self, width, height, cellsize=32):
         try:
+            dimension = min(width, height)
+
             field = self.get_path()
             self.running = True
-            self.surface = pygame.display.set_mode((800,800))
+            self.surface = pygame.display.set_mode((dimension,dimension))
             self.width = int(open(field).readline().split()[0])
-            size=self.width*cellsize
+            cellsize = (dimension)//(self.width+2)
+            size=cellsize*self.width
             self.fieldrect = pygame.Rect(0,0,size,size)
             self.fieldrect.x+=10
             self.fieldrect.y+=10
@@ -182,6 +219,11 @@ class SudokuGame:
             self.selectorrect = self.selector.surface.get_rect()
             self.selectorrect.y = size+16+10
             self.selectorrect.x+=10
+            self.score = SudokuScoreCounter(self.field, pygame.Surface((100, 30)))
+            self.scorerect = self.score.surface.get_rect()
+            self.scorerect.y+=self.selectorrect.y+self.selectorrect.height+5
+            self.scorerect.x+=self.selectorrect.x
+
 
             self.clock = pygame.time.Clock()
             #self.listen_click_thread = threading.Thread(target=self.listen_click, daemon=True)
@@ -210,6 +252,8 @@ class SudokuGame:
                     x,y = event.pos
                     if self.fieldrect.collidepoint((x,y)):
                         self.field.select(x-self.fieldrect.x, y-self.fieldrect.y)
+                    elif self.scorerect.collidepoint((x,y)):
+                        self.score.click(x-self.scorerect.x, y-self.scorerect.y)
                     elif self.selectorrect.collidepoint((x,y)):
                         number = self.selector.check_click(x-self.selectorrect.x, y-self.selectorrect.y)
                         if number>self.width:
@@ -222,8 +266,10 @@ class SudokuGame:
         self.surface.fill(pygame.Color('black'))
         self.field.draw()
         self.selector.draw()
+        self.score.draw()
         self.surface.blit(self.field.surface, self.fieldrect)
         self.surface.blit(self.selector.surface, self.selectorrect)
+        self.surface.blit(self.score.surface, self.scorerect)
         pygame.draw.rect(self.surface, pygame.Color('white'), self.fieldrect, 3)
         pygame.draw.rect(self.surface, pygame.Color('white'), self.selectorrect, 3)
         pygame.display.update()
@@ -243,12 +289,9 @@ class SudokuGame:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
-                    return None
-
-
-
-
 
 if __name__ == '__main__':
-    game = SudokuGame(cellsize=64)
+    width=1920
+    height=1000
+    game = SudokuGame(width, height)
     #input()
