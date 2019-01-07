@@ -17,10 +17,11 @@ class SudokuField:
     def __init__(self, n, bx, by, surface=None, cellsize=32):
         self.field = [[None for _x in range(n)] for _y in range(n)]
         self.immutable = [[False for _x in range(n)] for _y in range(n)]
-        self.font = pygame.font.SysFont(pygame.font.get_default_font(), int(cellsize))
-        self.images_white = [self.font.render(str(i) if i>0 else '?', True, pygame.Color('white' if i>0 else 'red')) for i in range(n+1)]
-        self.images_green = [self.font.render(str(i) if i>0 else '?', True, pygame.Color('green' if i>0 else 'red')) for i in range(n+1)]
-
+        self.cellsize = cellsize
+        self.n = n
+        self.font = pygame.font.SysFont(pygame.font.get_default_font(), int(self.cellsize))
+        self.images_white = [self.font.render(str(i) if i>0 else '?', True, pygame.Color('white' if i>0 else 'red')) for i in range(self.n+1)]
+        self.images_green = [self.font.render(str(i) if i>0 else '?', True, pygame.Color('green' if i>0 else 'red')) for i in range(self.n+1)]
         self.block = (bx, by)
         self.cellsize=cellsize
         self.selected = None
@@ -29,11 +30,17 @@ class SudokuField:
         self.errors = []
         self.error_ticks = 0
         self.count = 0
-        self.cells = [[pygame.Rect(cellsize*_x, cellsize*_y, cellsize, cellsize) for _x in range(n)] for _y in range(n)]
+        self.cells = [[pygame.Rect(cellsize*_x, cellsize*_y, cellsize, cellsize) for _x in range(self.n)] for _y in range(self.n)]
         if not surface:
             self.surface = pygame.display.set_mode((n*self.cellsize, n*self.cellsize))
         else:
             self.surface = surface
+
+    def recreate_cache(self):
+        self.font = pygame.font.SysFont(pygame.font.get_default_font(), int(self.cellsize))
+        self.images_white = [self.font.render(str(i) if i>0 else '?', True, pygame.Color('white' if i>0 else 'red')) for i in range(self.n+1)]
+        self.images_green = [self.font.render(str(i) if i>0 else '?', True, pygame.Color('green' if i>0 else 'red')) for i in range(self.n+1)]
+        self.cells = [[pygame.Rect(self.cellsize*_x, self.cellsize*_y, self.cellsize, self.cellsize) for _x in range(self.n)] for _y in range(self.n)]
 
     def draw(self):
         font=self.font
@@ -150,6 +157,8 @@ class SudokuNumberSelector:
         self.error = None
         self.error_ticks = 0
         self.font = pygame.font.SysFont(pygame.font.get_default_font(), int(self.cellsize))
+    def reset_cache(self):
+        self.font = pygame.font.SysFont(pygame.font.get_default_font(), int(self.cellsize))
     def draw(self):
         self.surface.fill(pygame.Color('black'))
         font=self.font
@@ -213,7 +222,7 @@ class SudokuGame:
 
             field = self.get_path()
             self.running = True
-            self.surface = pygame.display.set_mode((dimension,dimension))
+            self.surface = pygame.display.set_mode((dimension,dimension), pygame.RESIZABLE)
             self.width = int(open(field).readline().split()[0])
             cellsize = (dimension)//(self.width+2)
             size=cellsize*self.width
@@ -229,6 +238,10 @@ class SudokuGame:
             self.scorerect = self.score.surface.get_rect()
             self.scorerect.y+=self.selectorrect.y+self.selectorrect.height+5
             self.scorerect.x+=self.selectorrect.x
+            self.ticks = 0
+            self.update=False
+            self.target=(800,600)
+            #pygame.display.toggle_fullscreen()
 
 
             self.clock = pygame.time.Clock()
@@ -246,14 +259,51 @@ class SudokuGame:
         a.destroy()
         return file
 
+    def reset_rects(self, width, height):
+        dimension = min(width, height)
+        cellsize = (dimension)//(self.width+2)
+        size=cellsize*self.width
+        self.fieldrect = pygame.Rect(0,0,size,size)
+        self.fieldrect.x+=10
+        self.fieldrect.y+=10
+        self.field.surface = pygame.Surface((size, size))
+        self.field.cellsize = cellsize
+        self.field.recreate_cache()
+        self.selector.surface = pygame.Surface((size+cellsize,cellsize))
+        self.selector.cellsize = cellsize
+        self.selectorrect = self.selector.surface.get_rect()
+        self.selectorrect.y = size+16+10
+        self.selectorrect.x+=10
+        self.scorerect = self.score.surface.get_rect()
+        self.scorerect.y+=self.selectorrect.y+self.selectorrect.height+5
+        self.scorerect.x+=self.selectorrect.x
+        self.update = True
+        self.ticks=0
+        self.target=(width, height)
+
+
+
     def listen_click(self):
         while self.running:
             self.clock.tick(20)
+            if self.update:
+                print(self.ticks)
+                self.ticks+=1
+                if self.ticks>5:
+                    self.ticks=0
+                    self.update=False
+                    self.surface = pygame.display.set_mode(self.target, pygame.RESIZABLE)
             self.draw()
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     return None
+                if event.type == pygame.KEYDOWN:
+                    if event.key in [eval('pygame.K_'+i) for i in ['q','e', 'RETURN', 'ESCAPE', 'DELETE']]:
+                        pygame.quit()
+                        return None
+                if event.type == pygame.VIDEORESIZE:
+                    self.reset_rects(*event.size)
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     x,y = event.pos
                     if self.fieldrect.collidepoint((x,y)):
@@ -298,6 +348,6 @@ class SudokuGame:
 
 if __name__ == '__main__':
     width=1920
-    height=1000
+    height=600
     game = SudokuGame(width, height)
     #input()
