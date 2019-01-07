@@ -17,6 +17,10 @@ class SudokuField:
     def __init__(self, n, bx, by, surface=None, cellsize=32):
         self.field = [[None for _x in range(n)] for _y in range(n)]
         self.immutable = [[False for _x in range(n)] for _y in range(n)]
+        self.font = pygame.font.SysFont(pygame.font.get_default_font(), int(cellsize))
+        self.images_white = [self.font.render(str(i) if i>0 else '?', True, pygame.Color('white' if i>0 else 'red')) for i in range(n+1)]
+        self.images_green = [self.font.render(str(i) if i>0 else '?', True, pygame.Color('green' if i>0 else 'red')) for i in range(n+1)]
+
         self.block = (bx, by)
         self.cellsize=cellsize
         self.selected = None
@@ -30,25 +34,27 @@ class SudokuField:
             self.surface = pygame.display.set_mode((n*self.cellsize, n*self.cellsize))
         else:
             self.surface = surface
-        self.font = pygame.font.SysFont(pygame.font.get_default_font(), int(self.cellsize))
 
     def draw(self):
         font=self.font
         self.surface.fill(pygame.Color('black'))
+        for i in self.cells:
+            pygame.draw.line(self.surface, pygame.Color('white'), (0, i[0].y), (self.surface.get_width(), i[0].y))
+        for i in self.cells[0]:
+            pygame.draw.line(self.surface, pygame.Color('white'), (i.x, 0), (i.x, self.surface.get_height()))
+
         drawcell = None
         for fline, cline in zip(self.field, self.cells):
             for value, cell in zip(fline, cline):
                 if value is None:
-                    surface = font.render('?', True, pygame.Color('red'))
+                    surface = self.images_green[0]
                 else:
                     if self.immutable[cell.y//self.cellsize][cell.x//self.cellsize]:
-                        surface = font.render(str(value), True, pygame.Color('white'))
+                        surface = self.images_white[value]
                     else:
-                        surface = font.render(str(value), True, pygame.Color('green'))
+                        surface = self.images_green[value]
                 tc = surface.get_rect()
                 tc.center=cell.center
-                pygame.draw.line(self.surface, pygame.Color('white'), (cell.x, 0), (cell.x, self.surface.get_height()))
-                pygame.draw.line(self.surface, pygame.Color('white'), (0, cell.y), (self.surface.get_width(), cell.y))
                 self.surface.blit(surface, tc)
                 if self.selected:
                     if (self.selected[0]*self.cellsize, self.selected[1]*self.cellsize) ==  (cell.x, cell.y):
@@ -188,7 +194,7 @@ class SudokuScoreCounter:
         text = self.font.render("Restart", True, pygame.Color('white'))
         rtrect = text.get_rect()
         rtrect.y+=5
-        rtrect.x+=15+trect.x
+        rtrect.x+=200+trect.x
         self.surface.blit(text, rtrect)
         pygame.draw.rect(self.surface, pygame.Color('white'), rtrect, 2)
         self.brect = rtrect
@@ -219,7 +225,7 @@ class SudokuGame:
             self.selectorrect = self.selector.surface.get_rect()
             self.selectorrect.y = size+16+10
             self.selectorrect.x+=10
-            self.score = SudokuScoreCounter(self.field, pygame.Surface((100, 30)))
+            self.score = SudokuScoreCounter(self.field, pygame.Surface((300, 30)))
             self.scorerect = self.score.surface.get_rect()
             self.scorerect.y+=self.selectorrect.y+self.selectorrect.height+5
             self.scorerect.x+=self.selectorrect.x
