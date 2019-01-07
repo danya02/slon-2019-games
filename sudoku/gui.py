@@ -257,7 +257,9 @@ class SudokuGame:
         a = tkinter.Tk()
         w = tkinter.Label(a, text="Select file in dialog (may be minimized)", font=("Helvetica", 24))
         w.pack()
-        file = tkinter.filedialog.askopenfilename()
+        file=None
+        while not file or file=='':
+            file = tkinter.filedialog.askopenfilename()
         a.destroy()
         return file
 
